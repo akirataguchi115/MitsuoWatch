@@ -6,7 +6,6 @@ import Toybox.Time.Gregorian;
 
 class MitsuoWatchView extends WatchUi.WatchFace {
 
-    private var _font as FontResource?;
     private var _isAwake as Boolean?;
     private var _screenShape as ScreenShape;
     private var _dndIcon as BitmapResource?;
@@ -15,6 +14,8 @@ class MitsuoWatchView extends WatchUi.WatchFace {
     private var _screenCenterPoint as Array<Number>?;
     private var _fullScreenRefresh as Boolean;
     private var _partialUpdatesAllowed as Boolean;
+    private var _bitmap as BitmapResource;
+    private const IMAGES = [$.Rez.Drawables.id_bird] as Array<Symbol>;
 
     //! Initialize variables for this view
     public function initialize() {
@@ -22,12 +23,13 @@ class MitsuoWatchView extends WatchUi.WatchFace {
         _screenShape = System.getDeviceSettings().screenShape;
         _fullScreenRefresh = true;
         _partialUpdatesAllowed = (WatchUi.WatchFace has :onPartialUpdate);
+        _bitmap = WatchUi.loadResource(IMAGES[0]) as BitmapResource;
     }
 
     //! Configure the layout of the watchface for this device
     //! @param dc Device context
     public function onLayout(dc as Dc) as Void {
-
+        _bitmap = WatchUi.loadResource(IMAGES[0]) as BitmapResource;
         // If this device supports BufferedBitmap, allocate the buffers we use for drawing
         if (Graphics has :BufferedBitmap) {
             // Allocate a full screen size buffer with a palette of only 4 colors to draw
@@ -40,8 +42,9 @@ class MitsuoWatchView extends WatchUi.WatchFace {
                     Graphics.COLOR_DK_GRAY,
                     Graphics.COLOR_LT_GRAY,
                     Graphics.COLOR_BLACK,
-                    Graphics.COLOR_WHITE
-                ] as Array<ColorValue>
+                    Graphics.COLOR_WHITE,
+                    0x00ffaa
+                ]
             });
 
             // Allocate a buffer tall enough to draw the date into the full width of the
@@ -104,16 +107,17 @@ class MitsuoWatchView extends WatchUi.WatchFace {
             for (var i = Math.PI / 6; i <= 11 * Math.PI / 6; i += (Math.PI / 3)) {
                 // Partially unrolled loop to draw two tickmarks in 15 minute block.
                 var sY = outerRad + innerRad * Math.sin(i);
-                var eY = outerRad + outerRad * Math.sin(i);
                 var sX = outerRad + innerRad * Math.cos(i);
-                var eX = outerRad + outerRad * Math.cos(i);
-                dc.drawLine(sX, sY, eX, eY);
+                dc.setColor(0x00ffaa, 0x00ffaa);
+                dc.fillCircle(sX, sY, 7);
+                dc.drawCircle(sX, sY, 7);
+
                 i += Math.PI / 6;
                 sY = outerRad + innerRad * Math.sin(i);
-                eY = outerRad + outerRad * Math.sin(i);
                 sX = outerRad + innerRad * Math.cos(i);
-                eX = outerRad + outerRad * Math.cos(i);
-                dc.drawLine(sX, sY, eX, eY);
+                dc.setColor(0x00ffaa, 0x00ffaa);
+                dc.fillCircle(sX, sY, 7);
+                dc.drawCircle(sX, sY, 7);
             }
         } else {
             var coords = [0, width / 4, (3 * width) / 4, width] as Array<Number>;
@@ -137,7 +141,6 @@ class MitsuoWatchView extends WatchUi.WatchFace {
     //! Handle the update event
     //! @param dc Device context
     public function onUpdate(dc as Dc) as Void {
-        var screenWidth = dc.getWidth();
         var clockTime = System.getClockTime();
         var targetDc = null;
 
@@ -168,7 +171,7 @@ class MitsuoWatchView extends WatchUi.WatchFace {
         }
 
         // Use white to draw the hour and minute hands
-        targetDc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        targetDc.setColor(0x00ffaa, 0x00ffaa);
 
         if (_screenCenterPoint != null) {
             // Draw the hour hand. Convert it to minutes and compute the angle.
@@ -198,7 +201,7 @@ class MitsuoWatchView extends WatchUi.WatchFace {
             var dateDc = _dateBuffer.getDc();
 
             // Draw the background image buffer into the date buffer to set the background
-            dateDc.drawBitmap(0, -(height / 4), offscreenBuffer);
+            // dateDc.drawBitmap(0, -(height / 4), offscreenBuffer);
 
             // Draw the date string into the buffer.
             drawDateString(dateDc, width / 2, 0);
@@ -227,6 +230,8 @@ class MitsuoWatchView extends WatchUi.WatchFace {
             }
         }
 
+        targetDc.drawBitmap(20, 20, _bitmap);
+
         _fullScreenRefresh = false;
     }
 
@@ -236,10 +241,10 @@ class MitsuoWatchView extends WatchUi.WatchFace {
     //! @param y The y location of the text
     private function drawDateString(dc as Dc, x as Number, y as Number) as Void {
         var info = Gregorian.info(Time.now(), Time.FORMAT_LONG);
-        var dateStr = Lang.format("$1$ $2$ $3$", [info.day_of_week, info.month, info.day]);
+        var dateStr = Lang.format("$1$ $2$", [info.day_of_week, info.day]);
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x, y, Graphics.FONT_MEDIUM, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(x, y, Graphics.FONT_SMALL, dateStr, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     //! Handle the partial update event
@@ -316,7 +321,7 @@ class MitsuoWatchView extends WatchUi.WatchFace {
         // Draw the date
         if (null != _dateBuffer) {
             // If the date is saved in a Buffered Bitmap, just copy it from there.
-            dc.drawBitmap(0, height / 4, _dateBuffer);
+            dc.drawBitmap(width / 3, height * 2 / 5, _dateBuffer);
         } else {
             // Otherwise, draw it from scratch.
             drawDateString(dc, width / 2, height / 4);
